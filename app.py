@@ -1,45 +1,69 @@
-from fastapi import FastAPI, UploadFile
-import json
-from matcher import match_patient_to_trial
-from nlp_utils import extract_patient_info
-from voice import voice_to_text
+import streamlit as st
+import requests
 
-app = FastAPI()
+st.set_page_config(page_title="Clinical Trial Matcher", layout="centered")
 
-# Load trials
-with open("sample_data/trials.json") as f:
-    trials = json.load(f)
+st.title("🧠 AI Clinical Trial Matcher")
 
-@app.post("/match/text")
-async def match_text(text: str):
-    patient = extract_patient_info(text)
+st.write("Enter patient details or upload voice to find matching clinical trials")
 
-    results = []
-    for trial in trials:
-        score, explanation = match_patient_to_trial(patient, trial)
-        results.append({
-            "trial": trial["name"],
-            "score": score,
-            "explanation": explanation
-        })
+# Option selection
+option = st.radio("Choose Input Method", ["Text Input", "Voice Input"])
 
-    results.sort(key=lambda x: x["score"], reverse=True)
-    return results
+# ---------------- TEXT INPUT ----------------
+if option == "Text Input":
+    text = st.text_area("Enter patient details:")
 
-@app.post("/match/voice")
-async def match_voice(file: UploadFile):
-    with open("temp.wav", "wb") as f:
-        f.write(await file.read())
+    if st.button("Find Trials"):
+        if text:
+            try:
+                response = requests.post(
+                    "http://127.0.0.1:8000/match/text",
+                    params={"text": text}
+                )
+                data = response.json()
 
-    text = voice_to_text("temp.wav")
-    patient = extract_patient_info(text)
+                st.success("Results Found ✅")
 
-    results = []
-    for trial in trials:
-        score, explanation = match_patient_to_trial(patient, trial)
-        results.append({
-            "trial": trial["name"],
-            "score": score
-        })
+                for trial in data:
+                    st.subheader(f"🧪 {trial['trial']}")
+                    st.write(f"📊 Score: {trial['score']:.2f}")
 
-    return results
+                    if "explanation" in trial:
+                        st.write("🔍 Explanation:")
+                        for exp in trial["explanation"]:
+                            st.write(f"- {exp}")
+
+                    st.markdown("---")
+
+            except:
+                st.error("❌ Backend not running!")
+
+        else:
+            st.warning("⚠️ Please enter patient details")
+
+# ---------------- VOICE INPUT ----------------
+elif option == "Voice Input":
+    file = st.file_uploader("Upload .wav file", type=["wav"])
+
+    if st.button("Match Voice"):
+        if file:
+            try:
+                response = requests.post(
+                    "http://127.0.0.1:8000/match/voice",
+                    files={"file": file}
+                )
+                data = response.json()
+
+                st.success("Results Found ✅")
+
+                for trial in data:
+                    st.subheader(f"🧪 {trial['trial']}")
+                    st.write(f"📊 Score: {trial['score']:.2f}")
+                    st.markdown("---")
+
+            except:
+                st.error("❌ Backend not running!")
+
+        else:
+            st.warning("⚠️ Please upload a file")
