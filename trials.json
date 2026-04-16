@@ -1,0 +1,12 @@
+[
+  {
+    "name": "Diabetes Trial A",
+    "inclusion": ["diabetes"],
+    "exclusion": ["heart"]
+  },
+  {
+    "name": "General Trial B",
+    "inclusion": ["bp"],
+    "exclusion": []
+  }
+]
